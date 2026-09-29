@@ -1,27 +1,36 @@
-resource "aws_iam_role" "roleC" {
+# ============================================================
+# Account B - 111111111111
+# ============================================================
+
+data "aws_iam_policy_document" "roleC_trust" {
   provider = aws.account_b
-  name     = "roleC"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
 
-    Statement = [
-      {
-        Effect = "Allow"
+    principals {
+      type = "AWS"
 
-        Principal = {
-          AWS = "arn:aws:iam::000000000000:role/roleB"
-        }
-
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
+      identifiers = [
+        "arn:aws:iam::000000000000:role/roleB"
+      ]
+    }
+  }
 }
 
-resource "aws_iam_role_policy" "roleC_policy" {
+resource "aws_iam_role" "roleC" {
   provider = aws.account_b
-  role     = aws_iam_role.roleC.id
+
+  name               = "roleC"
+  assume_role_policy = data.aws_iam_policy_document.roleC_trust.json
+}
+
+resource "aws_iam_role_policy" "roleC_s3" {
+  provider = aws.account_b
+
+  name = "roleC-s3-access"
+  role = aws_iam_role.roleC.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -30,7 +39,9 @@ resource "aws_iam_role_policy" "roleC_policy" {
       {
         Effect = "Allow"
 
-        Action = "s3:*"
+        Action = [
+          "s3:*"
+        ]
 
         Resource = [
           "arn:aws:s3:::my-build-artifacts-bucket",

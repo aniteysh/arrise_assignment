@@ -333,3 +333,58 @@ The AWS account IDs remain:
 
     Account A = 000000000000
     Account B = 111111111111
+
+
+## Task 5 — Find and Fix the Bug
+
+The configuration had two separate problems.
+
+### 1. The trust policy referenced roleB as a user
+
+The original principal was:
+
+    arn:aws:iam::000000000000:user/roleB
+
+But `roleB` is an IAM role, not an IAM user.
+
+IAM ARNs identify the principal type in the ARN itself. Therefore a role must use:
+
+    arn:aws:iam::000000000000:role/roleB
+
+Because the trust policy was pointing to a user named `roleB`, it was not trusting the actual roleB that was supposed to assume roleC.
+
+The corrected trust relationship is:
+
+    arn:aws:iam::000000000000:role/roleB
+
+This means Account B's roleC specifically trusts roleB from Account A.
+
+### 2. The Terraform role reference was invalid
+
+The original configuration attempted to assign the IAM role using an invalid expression:
+
+    role = [aws_iam_role.roleC.id](...)
+
+`aws_iam_role.roleC.id` is already the Terraform resource attribute containing the role ID.
+
+The correct reference is:
+
+    role = aws_iam_role.roleC.id
+
+Therefore the corrected configuration both trusts the correct IAM principal and attaches the S3 policy to the correct Terraform role resource.
+
+### Result
+
+The intended flow is:
+
+    Account A
+        |
+        | roleB assumes roleC
+        v
+    Account B
+        |
+        v
+      roleC
+        |
+        v
+      S3 access
